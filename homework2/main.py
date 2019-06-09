@@ -2,11 +2,12 @@ import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 
-#from opencv_det_and_descr import detect_keypoints_and_calculate_descriptors
-from opencv_det_and_descr import detect_keypoints_and_calculate_descriptors
+from det_and_descr import detect_keypoints_and_calculate_descriptors
+# from opencv_det_and_descr import detect_keypoints_and_calculate_descriptors
 
 
 img_in_path = './res/tracking/'
+# img_in_path = '/home/dima/UCU/ComputerVision/Repos/ComputerVision/homework2/res/tracking/'
 
 
 def match_brute_force(descr_arr0, descr_arr1):
