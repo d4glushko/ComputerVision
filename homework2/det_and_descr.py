@@ -155,6 +155,7 @@ def brief(img, x, y, pairs, patch_size):
     for index, (pair_x, pair_y) in enumerate(pairs):
         value = img[x - half_patch_size + pair_x, y - half_patch_size + pair_y]
         if (value > p):
+            # Convert to uint8 descriptor to be consistent with result from openCV
             descriptor[index // 8] += 2 ** (index % 8)
 
     return descriptor
