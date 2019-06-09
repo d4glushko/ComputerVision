@@ -160,7 +160,7 @@ def brief(img, x, y, pairs, patch_size):
     return descriptor
 
 def compute_descriptors(img, kp_arr):
-    patch_size = 9
+    patch_size = 51
     descriptor_length = 256
 
     np.random.seed(0)
