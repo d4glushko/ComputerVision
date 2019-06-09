@@ -67,19 +67,19 @@ def bresenham_circle(img, i, j):
         img[i - 1, j - 3],
     ]
 
-def corner_test(img, i, j, t):
+def corner_test(img, i, j, threshold):
     point = img[i, j]
     # Pixels 1,5,9 and 13
     pixels = img[i, j - 3], img[i + 3, j], img[i, j + 3], img[i - 3, j]
 
-    if sum([pixel > point + t for pixel in pixels]) >= 3:
+    if sum([pixel > point + threshold for pixel in pixels]) >= 3:
         return True, True
 
-    if sum([pixel < point - t for pixel in pixels]) >= 3:
+    if sum([pixel < point - threshold for pixel in pixels]) >= 3:
         return True, False
     return False, None
 
-def corner_score(img, i, j, threshold, is_brighter):
+def calculate_corner_score(img, i, j, threshold, is_brighter):
     point = img[i, j]
     if is_brighter:
         pixels_score = [
@@ -114,7 +114,7 @@ def non_maximum_suppresion(img, distance=5):
         for j in range(width):
             maximum = new_img[i : i + distance, j : j + distance].max()
             if maximum and maximum == img[i, j]:
-                result.append((i,j))
+                result.append((j,i))
     return result
 
 def find_keypoints_candidates(img, threshold=10):
@@ -126,7 +126,7 @@ def find_keypoints_candidates(img, threshold=10):
             is_candidate, is_brighter = corner_test(img, i, j, threshold)
 
             if is_candidate:
-                max_contiguous_pixels, corner_score = corner_score(
+                max_contiguous_pixels, corner_score = calculate_corner_score(
                     img, i, j, threshold, is_brighter
                 )
                 if max_contiguous_pixels >= 10:
@@ -160,7 +160,7 @@ def brief(img, x, y, pairs, patch_size):
     return descriptor
 
 def compute_descriptors(img, kp_arr):
-    patch_size = 49
+    patch_size = 9
     descriptor_length = 256
 
     np.random.seed(0)
@@ -186,10 +186,10 @@ def compute_descriptors(img, kp_arr):
 # function for keypoints and descriptors calculation
 def detect_keypoints_and_calculate_descriptors(img):
     # img - numpy 2d array (grayscale image)
-    img_blur = gaussian_blur(img, 9, 1.4)
+    img_blur = gaussian_blur(img, 31, 3)
 
     # keypoints
-    kp_arr = find_keypoints_candidates(img_blur, 10)
+    kp_arr = find_keypoints_candidates(img_blur, 7)
     # kp_arr is array of 2d coordinates-tuples, example:
     # [(x0, y0), (x1, y1), ...]
     # xN, yN - integers
