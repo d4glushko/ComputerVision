@@ -5,3 +5,6 @@ numpy == 1.16.3
 opencv-python == 4.1.0.25
 tensorflow == 1.13.1
 tqdm == 4.32.1
+imutils == 0.5.2
+scikit-image == 0.15.0
+matplotlib == 3.1.0
