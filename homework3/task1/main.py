@@ -76,6 +76,8 @@ def record_video(frames, path):
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     height, width, layers = frames[0].shape
     video_path = os.path.join(RESULT_FOLDER, path + '.mp4')
+    if not os.path.exists(os.path.dirname(video_path)):
+        os.makedirs(os.path.dirname(video_path))
     fps = 60
     video = cv2.VideoWriter(video_path, fourcc, fps, (width, height))
 
