@@ -7,8 +7,8 @@ config = {
     },
     'biker': {
         'channels': [0],
-        'filter_from': (0., 0., 0),
-        'filter_to': (255., 255., 255.),
+        'filter_from': (70., 0., 0),
+        'filter_to': (180., 255., 255.),
         'roi': (262,94,16,26),
     }
 }
