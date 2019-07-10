@@ -38,8 +38,8 @@ def meanshift(images, roi, dataset):
         cv2.imshow("Mask", mask)
         cv2.imshow("Frame", frame)
 
-        duration = 10
-        key = cv2.waitKey(duration)
+        speed = 30
+        key = cv2.waitKey(speed)
 
     cv2.destroyAllWindows()
     record_video(frames, os.path.join(dataset, 'meanshift'))
