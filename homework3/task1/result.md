@@ -1,5 +1,5 @@
 # How to run
-`python .\main.py --dataset "panda"`
+`python main.py --dataset "panda"`
 
 Allowed datasets with preconfigured ROI and filters:
 - panda
