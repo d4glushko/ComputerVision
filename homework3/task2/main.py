@@ -9,67 +9,72 @@ DATA_FOLDER = 'data'
 RESULT_FOLDER = 'result'
 IMAGES_FOLDER = 'img'
 
-HIST_RANGES = [0,180]
-HIST_SIZE = [180]
-SCALE = 1
-TERM_CRITERIA = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 1)
-RECT_COLOR = (255,0,0)
-RECT_SIZE = 2
+#LK
+WIN_SIZE = (15,15)
+MAX_LEVEL = 0
+TERM_CRITERIA = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03)
+
+POINTS = 100
+
 SPEED = 30
 
-def get_roi_hist(roi_frame, dataset):
-    hsv_roi_frame = cv2.cvtColor(roi_frame, cv2.COLOR_BGR2HSV)
-    mask = cv2.inRange(hsv_roi_frame, np.array(config[dataset]['filter_from']), np.array(config[dataset]['filter_to']))
-    roi_hist = cv2.calcHist([hsv_roi_frame], config[dataset]['channels'], mask, HIST_SIZE, HIST_RANGES)
-    roi_hist = cv2.normalize(roi_hist, roi_hist, 0, 255, cv2.NORM_MINMAX)
-    return roi_hist
+OPACITY = 0.99
 
-def meanshift(images, roi, dataset):
-    x, y, width, height = roi
+def lk(images, dataset):
+    p0 = np.array(np.random.rand(POINTS,1,2), dtype=np.float32)
+
+    # Parameters for lucas kanade optical flow
+    lk_params = dict( winSize  = WIN_SIZE,
+                    maxLevel = MAX_LEVEL,
+                    criteria = TERM_CRITERIA)
+
+    # Create some random colors
+    color = np.random.randint(0,255,(POINTS,3))
+
+    # Take first frame and find corners in it
     first_frame, *frames = images
+    h, w, _ = first_frame.shape
+    p0[:,:,0] *= w
+    p0[:,:,1] *= h
+    old_gray = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
 
-    roi_frame = first_frame[y: y + height, x: x + width]
-    cv2.imshow("First Frame", roi_frame)
-    roi_hist = get_roi_hist(roi_frame, dataset)
+    # Create a mask image for drawing purposes
+    mask = np.zeros_like(first_frame)
 
     for frame in frames:
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        mask = cv2.calcBackProject([hsv], config[dataset]['channels'], roi_hist, HIST_RANGES, SCALE)
-        _, track_window = cv2.meanShift(mask, (x, y, width, height), TERM_CRITERIA)
-        x, y, w, h = track_window
+        frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        cv2.rectangle(frame, (x, y), (x + w, y + h), RECT_COLOR, RECT_SIZE)
-        cv2.imshow("Mask", mask)
-        cv2.imshow("Frame", frame)
+        # calculate optical flow
+        p1, st, err = cv2.calcOpticalFlowPyrLK(old_gray, frame_gray, p0, None, **lk_params)
 
-        key = cv2.waitKey(SPEED)
+        # delete redundant colors
+        delete_elements = np.where(st == 0)[0]
+        color = np.delete(color, delete_elements, 0)
 
-    cv2.destroyAllWindows()
-    record_video(frames, os.path.join(dataset, 'meanshift'))
+        # Select good points
+        good_new = p1[st==1]
+        good_old = p0[st==1]
 
-def camshift(images, roi, dataset):
-    x, y, width, height = roi
-    first_frame, *frames = images
-
-    roi_frame = first_frame[y: y + height, x: x + width]
-    cv2.imshow("First Frame", roi_frame)
-    roi_hist = get_roi_hist(roi_frame, dataset)
-
-    for frame in frames:
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        mask = cv2.calcBackProject([hsv], config[dataset]['channels'], roi_hist, HIST_RANGES, SCALE)
-        ret, track_window = cv2.CamShift(mask, (x, y, width, height), TERM_CRITERIA)
-        pts = cv2.boxPoints(ret)
-        pts = np.int0(pts)
-
-        cv2.polylines(frame, [pts], True, RECT_COLOR, RECT_SIZE)
-        cv2.imshow('Mask', mask)
+        # draw the tracks
+        for i,(new,old) in enumerate(zip(good_new, good_old)):
+            a,b = new.ravel()
+            c,d = old.ravel()
+            mask = cv2.line(mask, (a,b),(c,d), color[i].tolist(), 2)
+            frame = cv2.circle(frame,(a,b),5,color[i].tolist(),-1)
+        frame = cv2.add(frame,mask)
         cv2.imshow('Frame', frame)
 
+        # Now update the previous frame and previous points
+        old_gray = frame_gray.copy()
+        p0 = good_new.reshape(-1,1,2)
+
+        # Update mask to hide previous points over time using opacity
+        np.multiply(mask, OPACITY, out=mask, casting='unsafe')
+
         key = cv2.waitKey(SPEED)
 
     cv2.destroyAllWindows()
-    record_video(frames, os.path.join(dataset, 'camshift'))
+    record_video(frames, os.path.join(dataset, 'lk'))
 
 
 def record_video(frames, path):
@@ -95,22 +100,18 @@ def get_images(path):
     return images
 
 def main(args):
+    np.random.seed(1)
     dataset = args.dataset
-    roi = args.roi
     if dataset not in config:
         print("{} dataset does not exist".format(dataset))
         return
-    if not roi:
-        roi = config[dataset]['roi']
 
     images = get_images(dataset)
-    meanshift(np.copy(images), roi, dataset)
-    camshift(np.copy(images), roi, dataset)
+    lk(np.copy(images), dataset)
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
-parser.add_argument('--roi', type=int, nargs=4, help='(x, y, width, height)')
 
 args = parser.parse_args()
 
