@@ -107,7 +107,8 @@ def main(args):
 
     images = get_images(dataset)
     lk(np.copy(images), dataset)
-    lk(np.copy(images), dataset, 10)
+    lk_pyramids_max_level = 10
+    lk(np.copy(images), dataset, lk_pyramids_max_level)
 
 
 parser = argparse.ArgumentParser()
