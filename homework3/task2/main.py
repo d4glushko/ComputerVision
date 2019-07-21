@@ -11,7 +11,6 @@ IMAGES_FOLDER = 'img'
 
 #LK
 WIN_SIZE = (15,15)
-MAX_LEVEL = 0
 TERM_CRITERIA = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03)
 
 POINTS = 100
@@ -20,12 +19,12 @@ SPEED = 30
 
 OPACITY = 0.99
 
-def lk(images, dataset):
+def lk(images, dataset, pyramids_max_level=0):
     p0 = np.array(np.random.rand(POINTS,1,2), dtype=np.float32)
 
     # Parameters for lucas kanade optical flow
     lk_params = dict( winSize  = WIN_SIZE,
-                    maxLevel = MAX_LEVEL,
+                    maxLevel = pyramids_max_level,
                     criteria = TERM_CRITERIA)
 
     # Create some random colors
@@ -62,7 +61,7 @@ def lk(images, dataset):
             mask = cv2.line(mask, (a,b),(c,d), color[i].tolist(), 2)
             frame = cv2.circle(frame,(a,b),5,color[i].tolist(),-1)
         frame = cv2.add(frame,mask)
-        cv2.imshow('Frame', frame)
+        cv2.imshow('Frame with {} pyramid levels'.format(pyramids_max_level), frame)
 
         # Now update the previous frame and previous points
         old_gray = frame_gray.copy()
@@ -74,7 +73,7 @@ def lk(images, dataset):
         key = cv2.waitKey(SPEED)
 
     cv2.destroyAllWindows()
-    record_video(frames, os.path.join(dataset, 'lk'))
+    record_video(frames, os.path.join(dataset, 'lk-{}'.format(pyramids_max_level)))
 
 
 def record_video(frames, path):
@@ -108,6 +107,7 @@ def main(args):
 
     images = get_images(dataset)
     lk(np.copy(images), dataset)
+    lk(np.copy(images), dataset, 10)
 
 
 parser = argparse.ArgumentParser()
