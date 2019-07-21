@@ -9,54 +9,81 @@ DATA_FOLDER = 'data'
 RESULT_FOLDER = 'result'
 IMAGES_FOLDER = 'img'
 
+HIST_RANGES = [0,180]
+HIST_SIZE = [180]
+SCALE = 1
+TERM_CRITERIA = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 1)
+RECT_COLOR = (255,0,0)
+RECT_SIZE = 2
+SPEED = 30
+
+def get_roi_hist(roi_frame, dataset):
+    hsv_roi_frame = cv2.cvtColor(roi_frame, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(hsv_roi_frame, np.array(config[dataset]['filter_from']), np.array(config[dataset]['filter_to']))
+    roi_hist = cv2.calcHist([hsv_roi_frame], config[dataset]['channels'], mask, HIST_SIZE, HIST_RANGES)
+    roi_hist = cv2.normalize(roi_hist, roi_hist, 0, 255, cv2.NORM_MINMAX)
+    return roi_hist
+
 def meanshift(images, roi, dataset):
     x, y, width, height = roi
     first_frame, *frames = images
 
     roi_frame = first_frame[y: y + height, x: x + width]
     cv2.imshow("First Frame", roi_frame)
-    hsv_roi_frame = cv2.cvtColor(roi_frame, cv2.COLOR_BGR2HSV)
-    hist_size = [180]
-    ranges = [0,180]
-    mask = cv2.inRange(hsv_roi_frame, np.array(config[dataset]['filter_from']), np.array(config[dataset]['filter_to']))
-    roi_hist = cv2.calcHist([hsv_roi_frame], config[dataset]['channels'], mask, hist_size, ranges)
-    roi_hist = cv2.normalize(roi_hist, roi_hist, 0, 255, cv2.NORM_MINMAX)
+    roi_hist = get_roi_hist(roi_frame, dataset)
 
     for frame in frames:
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        scale = 1
-        mask = cv2.calcBackProject([hsv], config[dataset]['channels'], roi_hist, ranges, scale)
-        iterations = 1000
-        step = 1
-        term_criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, iterations, step)
-        _, track_window = cv2.meanShift(mask, (x, y, width, height), term_criteria)
+        mask = cv2.calcBackProject([hsv], config[dataset]['channels'], roi_hist, HIST_RANGES, SCALE)
+        _, track_window = cv2.meanShift(mask, (x, y, width, height), TERM_CRITERIA)
         x, y, w, h = track_window
-        rect_color = (255,0,0)
-        rect_size = 2
-        cv2.rectangle(frame, (x, y), (x + w, y + h), rect_color, rect_size)
 
+        cv2.rectangle(frame, (x, y), (x + w, y + h), RECT_COLOR, RECT_SIZE)
         cv2.imshow("Mask", mask)
         cv2.imshow("Frame", frame)
 
-        duration = 10
-        key = cv2.waitKey(duration)
+        key = cv2.waitKey(SPEED)
 
     cv2.destroyAllWindows()
     record_video(frames, os.path.join(dataset, 'meanshift'))
+
+def camshift(images, roi, dataset):
+    x, y, width, height = roi
+    first_frame, *frames = images
+
+    roi_frame = first_frame[y: y + height, x: x + width]
+    cv2.imshow("First Frame", roi_frame)
+    roi_hist = get_roi_hist(roi_frame, dataset)
+
+    for frame in frames:
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        mask = cv2.calcBackProject([hsv], config[dataset]['channels'], roi_hist, HIST_RANGES, SCALE)
+        ret, track_window = cv2.CamShift(mask, (x, y, width, height), TERM_CRITERIA)
+        pts = cv2.boxPoints(ret)
+        pts = np.int0(pts)
+
+        cv2.polylines(frame, [pts], True, RECT_COLOR, RECT_SIZE)
+        cv2.imshow('Mask', mask)
+        cv2.imshow('Frame', frame)
+
+        key = cv2.waitKey(SPEED)
+
+    cv2.destroyAllWindows()
+    record_video(frames, os.path.join(dataset, 'camshift'))
 
 
 def record_video(frames, path):
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     height, width, layers = frames[0].shape
     video_path = os.path.join(RESULT_FOLDER, path + '.mp4')
+    if not os.path.exists(os.path.dirname(video_path)):
+        os.makedirs(os.path.dirname(video_path))
     fps = 60
     video = cv2.VideoWriter(video_path, fourcc, fps, (width, height))
-    print("{}".format(video_path))
 
     for frame in frames:
         video.write(frame)
 
-    print("done")
     cv2.destroyAllWindows()
     video.release()
 
@@ -77,7 +104,8 @@ def main(args):
         roi = config[dataset]['roi']
 
     images = get_images(dataset)
-    meanshift(images, roi, dataset)
+    meanshift(np.copy(images), roi, dataset)
+    camshift(np.copy(images), roi, dataset)
 
 
 parser = argparse.ArgumentParser()
